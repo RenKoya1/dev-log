@@ -1,5 +1,5 @@
 {
-  "name": "dev-log",
+  "name": "@renkoya1/dev-log",
   "version": "0.0.2",
   "description": "A simple development logging utility",
   "main": "dist/index.js",
