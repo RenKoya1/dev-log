@@ -1,0 +1,62 @@
+name: npm publish
+on:
+    push:
+        branches:
+            - main
+
+permissions:
+    contents: write
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v3
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+            # Setup .npmrc file to publish to npm
+            - uses: actions/setup-node@v3
+              with:
+                  node-version: "20.x"
+                  registry-url: "https://registry.npmjs.org"
+            - run: npm install
+
+            # Auto increment version
+            - name: Bump version
+              run: |
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  # Commit any changes from npm install (e.g., package-lock.json)
+                  git add -A
+                  git diff --staged --quiet || git commit -m "chore: update dependencies [skip ci]"
+
+                  npm version patch -m "chore: bump version to %s [skip ci]"
+                  git push
+
+            - run: npm run build
+            # Publish to npm
+            - run: npm publish --access public
+              env:
+                  NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+            - name: Install GitHub CLI
+              run: sudo apt install gh -y
+
+            - name: Read version and create tag
+              run: |
+                  VERSION=$(node -p "require('./package.json').version")
+                  TAG="v$VERSION"
+
+                  echo "Creating tag $TAG"
+
+                  git config user.name "github-actions[bot]"
+                  git config user.email "github-actions[bot]@users.noreply.github.com"
+
+                  git tag $TAG
+                  git push origin $TAG
+
+                  echo "Creating GitHub Release for $TAG"
+                  gh release create $TAG --title "$TAG" --notes "Automated release for version $TAG" --draft=false
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
